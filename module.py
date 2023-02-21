@@ -9,13 +9,29 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM, Embedding
 from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import TensorBoard, EarlyStopping
+from tensorflow.keras.callbacks import TensorBoard
 
 def eda(df):
+    """Perform EDA on dataset. Check for paragraphs
+
+    Args:
+        df (DataFrame): Dataset
+    """
     print(df.head())
     print(df['text'][1])
 
 def cleaned_data(text):
+    """Cleaning text for training/testing model.
+    First cleaning is to remove everything in between () brackets (i.e. (£5.8bn) to '')
+    Second cleaning is to replace everything except for letters into ' '
+    Last cleaning is to remove any singular characters (i.e. 'firm s shares' to 'firm shares')
+
+    Args:
+        text (Series): Article's text
+
+    Returns:
+        Series: Cleaned article's text
+    """
     for i, data in enumerate(text):
         temp = re.sub('\(.*?\)', ' ', data) # remove everything in () brackets
         temp = re.sub('[^a-zA-Z]', ' ', temp)
@@ -24,6 +40,16 @@ def cleaned_data(text):
     return text
 
 def text_tokenization(text, vocab_size):
+    """Text Tokenization/Vectorization
+
+    Args:
+        text (Series): Article's text
+        vocab_size (int): Vocabulary size
+
+    Returns:
+        ndarray: Tokenized text
+        Tokenizer: Tokenizer
+    """
     oov_token = '<OOV>'
 
     tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_token)
@@ -37,14 +63,33 @@ def text_tokenization(text, vocab_size):
     return text_tokenized, tokenizer
 
 def text_pad_trunc(text_tokenized, maxlen):
+    """Text Padding & Truncation
 
+    Args:
+        text_tokenized (list): Tokenized text
+        maxlen (int): Maximum length for all sequences
+
+    Returns:
+        ndarray: Padded & truncated text
+    """
     text_tokenized = pad_sequences(text_tokenized, maxlen=maxlen, padding='post', truncating='post')
     text_tokenized = np.expand_dims(text_tokenized, axis=-1)
 
     return text_tokenized
 
 def model_archi(vocab_size, num_labels, embedding_dim, drop_rate, MODEL_PNG_PATH):
+    """Model architecture
 
+    Args:
+        vocab_size (int): Vocabulary size
+        num_labels (int): Number of output classes
+        embedding_dim (int): Embedding dimensions
+        drop_rate (float): Dropout rate
+        MODEL_PNG_PATH (str): Path to save model.png
+
+    Returns:
+        Sequential: Sequential model
+    """
     model = Sequential()
     model.add(Embedding(vocab_size, embedding_dim))
     model.add(LSTM(embedding_dim, return_sequences=True))
@@ -61,6 +106,20 @@ def model_archi(vocab_size, num_labels, embedding_dim, drop_rate, MODEL_PNG_PATH
     return model
 
 def model_train(model, X_train, X_test, y_train, y_test, epochs=30):
+    """Training the model
+
+    Args:
+        model (Sequential): Sequential model
+        X_train (ndarray): Feature training variable
+        X_test (ndarray): Feature testing variable
+        y_train (ndarray): Target training variable
+        y_test (ndarray): Target testing variable
+        epochs (int, optional): Number of training epochs. Defaults to 30.
+
+    Returns:
+        History: Training history
+        Sequential: Sequential model
+    """
     log_dir = os.path.join(os.getcwd(), 'tensorboard_logs', datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     tb_callback = TensorBoard(log_dir=log_dir)
 
@@ -69,6 +128,11 @@ def model_train(model, X_train, X_test, y_train, y_test, epochs=30):
     return hist, model
 
 def plot_history(hist):
+    """Plotting training loss and training accuracy
+
+    Args:
+        hist (History): Training history
+    """
     plt.figure()
     plt.plot(hist.history['loss'])
     plt.plot(hist.history['val_loss'])
@@ -82,6 +146,15 @@ def plot_history(hist):
     plt.show()
 
 def model_metrics(model, ohe, X_test, y_test, category):
+    """To display accuracy, f1_score, classification report, and confusion matrix
+
+    Args:
+        model (Sequential): Sequential model
+        ohe (OneHotEncoder): OneHotEncoder model
+        X_test (ndarray): Feature testing variable
+        y_test (ndarray): Target testing variable
+        category (ndarray): Target variable
+    """
     y_pred = model.predict(X_test)
     y_pred = np.argmax(y_pred, axis=1)
     y_test = np.argmax(y_test, axis=1)
@@ -99,6 +172,16 @@ def model_metrics(model, ohe, X_test, y_test, category):
     plt.show()
 
 def model_save(MODEL_PATH, OHE_PATH, TOKEN_PATH, model, ohe, tokenizer):
+    """To save model.h5, ohe.pkl, tokenizer.json
+
+    Args:
+        MODEL_PATH (str): Path to save model.h5
+        OHE_PATH (str): Path to save ohe.pkl
+        TOKEN_PATH (str): Path to save tokenizer.json
+        model (Sequential): Sequential model
+        ohe (OneHotEncoder): OneHotEncoder model
+        tokenizer (Tokenizer): Tokenizer model
+    """
     model.save(MODEL_PATH)
 
     with open(OHE_PATH, 'wb') as f:
